@@ -68,7 +68,32 @@ Every clone needs the hooks enabled once:
 git config core.hooksPath .githooks
 ```
 
-Requirements: git ≥ 2.28, bash, Python ≥ 3.9. No Python packages.
+Requirements: git ≥ 2.28, bash, Python ≥ 3.9. No Python packages. Tested on Linux, macOS and Windows.
+
+### Windows
+
+Install [Git for Windows](https://git-scm.com/download/win) (it brings Git Bash) and Python
+3.9+, then in PowerShell:
+
+```powershell
+.\install.ps1 C:\path\to\your\repo
+```
+
+What is different on Windows, and handled for you:
+
+- **Line endings.** `.gitattributes` keeps shell scripts and hooks at LF; with CRLF, bash fails
+  with `\r: command not found`. If your repository already has a `.gitattributes`, the
+  installer skips it — add the lines from `template/.gitattributes` yourself.
+- **`python3`.** Windows often has only `python` or `py`. The hooks and `delegate.sh` find a
+  working Python 3 and make `python3 ...` acceptance lines work anyway. In PowerShell, run the
+  scripts as `python scripts\check_doc_structure.py`.
+- **Symlinks** need Developer Mode. Without it, `CLAUDE.md` becomes a one-line file
+  `@AGENTS.md` (Claude Code reads it as an import), and `agent_worktree.sh` skips linking
+  untracked data rather than copying it.
+- **Run the shell scripts** (`agent_worktree.sh`, `delegate.sh`) from Git Bash. Git runs the
+  hooks with its own bash, so commits from any terminal or app are checked.
+- **Time zone names** (`LOG_TZ`) need `pip install tzdata` on Windows; without it the local
+  time is used, with a warning.
 
 ## Delegation in practice
 

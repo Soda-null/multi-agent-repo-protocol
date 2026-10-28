@@ -1,0 +1,4 @@
+# Shell scripts and hooks must keep LF endings, or bash fails on Windows with "\r: command not found".
+*.sh text eol=lf
+*.py text eol=lf
+.githooks/* text eol=lf

@@ -29,6 +29,10 @@ import sys
 from datetime import date
 from pathlib import Path
 
+# Windows consoles and pipes default to a legacy code page; print UTF-8 everywhere.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = Path(__file__).resolve().parent.parent
 SKIP_DIRS = {".git", ".venv", "node_modules"}
 JUNK_FILES = re.compile(r"^(\.DS_Store|~\$.*)$")
@@ -48,11 +52,11 @@ def load(name: str):
 
 
 def git(*args: str, cwd: Path = ROOT) -> str:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True).stdout
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
 
 
 def run_check(script: str) -> tuple[bool, str]:
-    r = subprocess.run([sys.executable, script], cwd=ROOT, capture_output=True, text=True)
+    r = subprocess.run([sys.executable, script], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     tail = (r.stdout + r.stderr).strip().splitlines()
     return r.returncode == 0, (tail[-1] if tail else "")
 
@@ -71,7 +75,7 @@ def find_junk() -> list[Path]:
                     found.append(p)
                 else:
                     stack.append(p)
-            elif JUNK_FILES.match(p.name) and str(p.relative_to(ROOT)) not in tracked:
+            elif JUNK_FILES.match(p.name) and p.relative_to(ROOT).as_posix() not in tracked:
                 found.append(p)
     return sorted(found)
 

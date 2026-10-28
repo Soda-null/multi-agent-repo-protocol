@@ -36,6 +36,15 @@ esac
 dir="$parent/$base-$agent"
 branch="agent/$agent"
 
+# On Windows (Git Bash) `ln -s` silently copies unless told to make real links. Copying a
+# dataset would be slow and huge, so ask for native links and skip a path that cannot be
+# linked (native links need Windows Developer Mode, or an administrator shell).
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) export MSYS=winsymlinks:nativestrict ;; esac
+link() {
+    ln -s "$1" "$2" 2>/dev/null ||
+        echo "warning: could not link ${2#"$dir"/}; on Windows, turn on Developer Mode to allow symlinks" >&2
+}
+
 # A worktree carries only tracked files. Data a project keeps untracked on purpose
 # (datasets, PDFs, a virtualenv) would be missing, and checkers then report nothing
 # rather than failing loudly -- so link it in. The paths are already ignored by
@@ -51,7 +60,7 @@ link_untracked_data() {
             if [ -d "$root/$rel" ] && [ ! -L "$root/$rel" ]; then
                 link_dir_contents "$rel"
             else
-                ln -s "$root/$rel" "$dir/$rel"
+                link "$root/$rel" "$dir/$rel"
             fi
         done
 }
@@ -65,7 +74,7 @@ link_dir_contents() {
     for child in "$root/$rel"/* "$root/$rel"/.[!.]*; do
         [ -e "$child" ] || continue
         name=$(basename "$child")
-        [ -e "$dir/$rel/$name" ] || [ -L "$dir/$rel/$name" ] || ln -s "$child" "$dir/$rel/$name"
+        [ -e "$dir/$rel/$name" ] || [ -L "$dir/$rel/$name" ] || link "$child" "$dir/$rel/$name"
         if [ -L "$dir/$rel/$name" ] && [ -d "$child" ] && [ ! -L "$child" ] &&
             [ -n "$(git -C "$dir" status --porcelain -- "$rel/$name")" ]; then
             rm "$dir/$rel/$name"

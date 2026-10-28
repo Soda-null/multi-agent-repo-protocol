@@ -9,6 +9,7 @@ work="$(mktemp -d)"
 repo="$work/demo"
 trap "rm -rf \"$work\"" EXIT; [ -n "${KEEP:-}" ] && trap - EXIT
 fails=0
+. "$here/template/scripts/find_python.sh"   # python3 may be called python on Windows
 
 pass() { echo "PASS  $1"; }
 fail() { echo "FAIL  $1"; fails=$((fails + 1)); }
@@ -21,7 +22,10 @@ git config user.email demo@example.com
 git config user.name demo
 
 expect_ok   "install.sh copies the template"            "$here/install.sh" "$repo"
-expect_ok   "CLAUDE.md is a symlink to AGENTS.md"        test "$(readlink CLAUDE.md)" = AGENTS.md
+claude_md_points_at_agents() {
+    if [ -L CLAUDE.md ]; then [ "$(readlink CLAUDE.md)" = AGENTS.md ]; else [ "$(cat CLAUDE.md)" = "@AGENTS.md" ]; fi
+}
+expect_ok   "CLAUDE.md points at AGENTS.md"              claude_md_points_at_agents
 expect_ok   "hooks are enabled"                         test "$(git config core.hooksPath)" = .githooks
 expect_ok   "second install overwrites nothing"         "$here/install.sh" "$repo"
 expect_ok   "check_current_docs passes on the template" python3 scripts/check_current_docs.py

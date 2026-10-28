@@ -24,6 +24,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Windows consoles and pipes default to a legacy code page; print UTF-8 everywhere.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 CARD_KEYS = ("**Standing:**", "**地位：**")
 CARD_LINES = 15
 BUDGET_KB = {"STATUS.md": 20, "AGENTS.md": 16, "docs/agent_board.md": 8, "docs/glossary.md": 40}
@@ -35,10 +39,10 @@ def tracked(root: Path) -> list[str]:
     files: set[str] = set()
     for args in (["ls-files"], ["ls-files", "--others", "--exclude-standard"]):
         try:
-            out = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True).stdout
+            out = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True).stdout
             files.update(out.splitlines())
         except (subprocess.CalledProcessError, FileNotFoundError):
-            files.update(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file())
+            files.update(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
     return sorted(files)
 
 

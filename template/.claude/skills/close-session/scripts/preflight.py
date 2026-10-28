@@ -15,11 +15,14 @@ import subprocess
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
+
+# Windows consoles and pipes default to a legacy code page; print UTF-8 everywhere.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 def git(*args: str) -> str:
-    return subprocess.run(["git", *args], capture_output=True, text=True).stdout.strip()
+    return subprocess.run(["git", *args], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip()
 
 
 def main() -> int:
@@ -52,7 +55,7 @@ def main() -> int:
         info(f"on branch {branch!r}: commit here; merging into main is the owner's call")
 
     # 2. dirty tree
-    status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True).stdout
+    status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
     dirty = [line[3:] for line in status.splitlines() if line.strip()]
     if not dirty:
         ok("working tree clean")
@@ -63,7 +66,12 @@ def main() -> int:
 
     # 3. today's log
     tz = os.environ.get("LOG_TZ")
-    today = (datetime.now(ZoneInfo(tz)).date() if tz else date.today()).isoformat()
+    try:
+        from zoneinfo import ZoneInfo
+        today = (datetime.now(ZoneInfo(tz)).date() if tz else date.today()).isoformat()
+    except Exception:  # Windows without the tzdata package
+        info(f"time zone {tz!r} not available (on Windows: pip install tzdata); using local time")
+        today = date.today().isoformat()
     log = root / "docs" / "log" / f"{today}.md"
     if not log.is_file():
         td(f"no log for {today} → python3 scripts/new_log.py (skip only if no substantive work)")
@@ -100,7 +108,7 @@ def main() -> int:
     # 5. worklog line as of now
     wl = root / "scripts" / "worklog.py"
     if wl.is_file():
-        line = subprocess.run([sys.executable, str(wl), "--today"], capture_output=True, text=True,
+        line = subprocess.run([sys.executable, str(wl), "--today"], capture_output=True, text=True, encoding="utf-8", errors="replace",
                               cwd=root).stdout.strip()
         if line:
             info(f"worklog line now (re-run after the last substantive commit): {line}")

@@ -11,9 +11,13 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from datetime import date, datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
+
+# Windows consoles and pipes default to a legacy code page; print UTF-8 everywhere.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG_DIR = ROOT / "docs" / "log"
@@ -21,7 +25,14 @@ LOG_DIR = ROOT / "docs" / "log"
 
 def today() -> date:
     tz = os.environ.get("LOG_TZ")
-    return datetime.now(ZoneInfo(tz)).date() if tz else date.today()
+    if not tz:
+        return date.today()
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo(tz)).date()
+    except Exception:  # Windows without the tzdata package, or a misspelt zone
+        print(f"warning: time zone {tz!r} not available (on Windows: pip install tzdata); using local time")
+        return date.today()
 
 
 def main() -> int:

@@ -3,6 +3,7 @@
 # Each runs only when the staged change touches the layer it covers.
 # Add your project's own checks below, in the same shape.
 staged=$(git diff --cached --name-only)
+. scripts/find_python.sh   # sets $PY; makes `python3` work on Windows too
 
 case "$staged" in
     *STATUS.md*|*AGENTS.md*|*docs/agent_board.md*|*docs/decisions.md*|*docs/glossary.md*)

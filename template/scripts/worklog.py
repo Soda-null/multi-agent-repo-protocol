@@ -21,15 +21,20 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 from collections import defaultdict
 from datetime import datetime, timedelta
+
+# Windows consoles and pipes default to a legacy code page; print UTF-8 everywhere.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 def commits(since: str | None) -> list[datetime]:
     cmd = ["git", "log", "--all", "--format=%ad", "--date=format-local:%Y-%m-%d %H:%M"]
     if since:
         cmd.append(f"--since={since}")
-    out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True).stdout
     return sorted(datetime.strptime(l.strip(), "%Y-%m-%d %H:%M") for l in out.splitlines() if l.strip())
 
 

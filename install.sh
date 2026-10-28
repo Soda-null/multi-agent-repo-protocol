@@ -34,11 +34,20 @@ while IFS= read -r rel; do
     cp -p "$src/$rel" "$target/$rel"
 done < <(cd "$src" && find . -type f ! -name .DS_Store | sort)
 
+# CLAUDE.md must say the same as AGENTS.md. A symlink is best; where symlinks are not
+# allowed (Windows without Developer Mode) a one-line file that imports AGENTS.md does the
+# same for Claude Code. Never a copy: two copies drift apart.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) export MSYS=winsymlinks:nativestrict ;; esac
 if [ -e "$target/CLAUDE.md" ] || [ -L "$target/CLAUDE.md" ]; then
     echo "skip (exists)  CLAUDE.md -- make it point at AGENTS.md yourself if you want one rule file"
-else
+elif [ "$dry" = 1 ]; then
     echo "add            CLAUDE.md -> AGENTS.md"
-    [ "$dry" = 1 ] || ln -s AGENTS.md "$target/CLAUDE.md"
+elif ln -s AGENTS.md "$target/CLAUDE.md" 2>/dev/null && [ -L "$target/CLAUDE.md" ]; then
+    echo "add            CLAUDE.md -> AGENTS.md"
+else
+    rm -f "$target/CLAUDE.md"
+    printf '@AGENTS.md\n' > "$target/CLAUDE.md"
+    echo "add            CLAUDE.md (one line, @AGENTS.md: symlinks are not allowed here)"
 fi
 
 if [ "$dry" = 1 ]; then
@@ -58,5 +67,6 @@ Next:
   2. If you skipped files that already existed, merge the protocol into them by hand.
   3. Edit AGENTS_ALLOWED in .githooks/commit-msg if your agents have other names.
   4. Run: python3 scripts/check_current_docs.py && python3 scripts/check_doc_structure.py
+     (on Windows: python instead of python3)
   5. First commit: git add -A && git commit -m "Adopt the multi-agent protocol" -m "Agent: human"
 EOF

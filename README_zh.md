@@ -60,7 +60,26 @@ cd multi-agent-repo-protocol
 `install.sh` 把模板复制进你的仓库，**已有的文件一个都不覆盖**（会列出跳过了哪些），
 把 `CLAUDE.md` 链到 `AGENTS.md`，并打开钩子。之后填好 `AGENTS.md` 的 "Project" 一节和 `STATUS.md` §1。
 
-需要：git ≥ 2.28、bash、Python ≥ 3.9，不用装任何 Python 包。
+需要：git ≥ 2.28、bash、Python ≥ 3.9，不用装任何 Python 包。Linux、macOS、Windows 都测过。
+
+### Windows
+
+先装 [Git for Windows](https://git-scm.com/download/win)（自带 Git Bash）和 Python 3.9 以上，然后在 PowerShell 里：
+
+```powershell
+.\install.ps1 C:\你的\仓库\路径
+```
+
+Windows 上不一样的地方，都已经处理好了：
+
+- **换行符。** Windows 会把文件的换行改成另一种格式，bash 脚本就跑不起来了。`.gitattributes` 把脚本和钩子固定成 Linux 的换行。
+  如果你的仓库里已经有 `.gitattributes`，安装时会跳过它，你要自己把 `template/.gitattributes` 里那几行加进去。
+- **`python3` 命令。** Windows 上常常只有 `python` 或 `py`。钩子和派活脚本会自己找到能用的 Python。
+  在 PowerShell 里手动跑脚本时写 `python scripts\check_doc_structure.py`。
+- **快捷链接（symlink）** 要打开"开发者模式"才能建。没打开的话，`CLAUDE.md` 会变成只有一行 `@AGENTS.md` 的文件
+  （Claude Code 会把它当成"去读 AGENTS.md"）。分工作目录时，没提交的大数据会跳过，不会整份复制。
+- **`agent_worktree.sh`、`delegate.sh` 请在 Git Bash 里跑。** 钩子由 git 自己调 bash，所以从哪个终端或应用提交都会被检查。
+- **时区名**（`LOG_TZ`）在 Windows 上要先 `pip install tzdata`。没装就用本机时间，并给一句提示。
 
 ## 管不了的事
 

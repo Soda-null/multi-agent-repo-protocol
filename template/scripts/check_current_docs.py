@@ -30,6 +30,10 @@ import re
 import sys
 from pathlib import Path
 
+# Windows consoles and pipes default to a legacy code page; print UTF-8 everywhere.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = Path(__file__).resolve().parent.parent
 DECISIONS = ROOT / "docs/decisions.md"
 GLOSSARY = ROOT / "docs/glossary.md"

@@ -49,6 +49,7 @@ fi
 }
 
 root=$(git rev-parse --show-toplevel)
+. "$root/scripts/find_python.sh"   # acceptance lines say `python3`; this makes that work on Windows
 
 # The gate. A task whose correctness no command can check is not mechanical.
 accept=$(grep -m1 '^\*\*Acceptance:\*\*' "$packet" | sed -n 's/.*`\(.*\)`.*/\1/p' || true)
