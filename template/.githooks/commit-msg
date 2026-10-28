@@ -1,0 +1,32 @@
+#!/bin/sh
+# Require every commit to name the agent that wrote it, so that a later rollback
+# can be attributed. See AGENTS.md, "Multi-agent collaboration protocol".
+#
+# Edit AGENTS_ALLOWED to match the agents in your repository.
+AGENTS_ALLOWED="codex|claude-code|deepseek|local|human"
+FIRST_LINE_MAX=100
+msg_file="$1"
+
+# Merge, revert, fixup and squash commits carry the original attribution already.
+head -1 "$msg_file" | grep -Eq '^(Merge|Revert|fixup!|squash!)' && exit 0
+
+# A long first line: warn, never block. `git log --oneline` is read at the start of
+# every session, so a long first line is paid for by every agent, every time.
+first_len=$(head -1 "$msg_file" | LC_ALL=en_US.UTF-8 wc -m | tr -d ' ')
+if [ "${first_len:-0}" -gt "$FIRST_LINE_MAX" ]; then
+    echo "note: first line is ${first_len} characters; AGENTS.md asks for under ${FIRST_LINE_MAX} (details go in the body)." >&2
+fi
+
+if grep -Eq "^Agent: ($AGENTS_ALLOWED)\$" "$msg_file"; then
+    exit 0
+fi
+
+cat >&2 <<MSG
+commit rejected: the message needs an agent trailer on its own line, one of:
+
+    Agent: $(echo "$AGENTS_ALLOWED" | sed 's/|/   Agent: /g')
+
+Several agents share this repository and one git identity. Without the trailer
+nobody can tell who overwrote whose work. See AGENTS.md.
+MSG
+exit 1

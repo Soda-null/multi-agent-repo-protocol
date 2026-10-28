@@ -1,0 +1,29 @@
+#!/bin/sh
+# Mechanical checks that would otherwise cost an agent expensive reasoning.
+# Each runs only when the staged change touches the layer it covers.
+# Add your project's own checks below, in the same shape.
+staged=$(git diff --cached --name-only)
+
+case "$staged" in
+    *STATUS.md*|*AGENTS.md*|*docs/agent_board.md*|*docs/decisions.md*|*docs/glossary.md*)
+        if ! python3 scripts/check_current_docs.py; then
+            echo "" >&2
+            echo "commit rejected: an entry file cites a superseded decision, misses a glossary line," >&2
+            echo "or STATUS.md is older than the newest decision. See AGENTS.md, Decision discipline." >&2
+            exit 1
+        fi
+        ;;
+esac
+
+case "$staged" in
+    *docs/*|*STATUS.md*|*AGENTS.md*|*README.md*)
+        if ! python3 scripts/check_doc_structure.py; then
+            echo "" >&2
+            echo "commit rejected: a document lacks its header card, an index misses a file," >&2
+            echo "or an entry file is over its size budget. See AGENTS.md, Document discipline." >&2
+            exit 1
+        fi
+        ;;
+esac
+
+exit 0
