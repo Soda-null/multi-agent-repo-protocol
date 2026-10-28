@@ -3,9 +3,25 @@ on: [push, pull_request]
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - run: tests/smoke_test.sh
+      - name: PowerShell installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $repo = Join-Path $env:RUNNER_TEMP "ps-demo"
+          New-Item -ItemType Directory $repo | Out-Null
+          git -C $repo init -q -b main
+          .\install.ps1 $repo
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not (Test-Path (Join-Path $repo ".githooks\commit-msg"))) { throw "hooks not installed" }
+          if ((git -C $repo config core.hooksPath) -ne ".githooks") { throw "hooksPath not set" }
+          Get-Content (Join-Path $repo "CLAUDE.md")
