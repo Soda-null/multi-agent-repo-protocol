@@ -1,5 +1,9 @@
 # multi-agent-repo-protocol
 
+[![smoke test](https://github.com/Soda-null/multi-agent-repo-protocol/actions/workflows/test.yml/badge.svg)](https://github.com/Soda-null/multi-agent-repo-protocol/actions/workflows/test.yml)
+[![release](https://img.shields.io/github/v/release/Soda-null/multi-agent-repo-protocol)](https://github.com/Soda-null/multi-agent-repo-protocol/releases)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Rules, git hooks and small scripts that let several AI coding agents — Claude Code, Codex, a
 cheap API model, a local model — work in **one git repository** without overwriting each
 other, and let you find out afterwards **which agent did what**.
@@ -19,6 +23,18 @@ When you use more than one agent on the same project, the same things go wrong a
 The agents cannot talk to each other. **Files are the only channel.** So this protocol
 puts everything into files, and puts a machine check on every rule that a machine can check.
 
+## Try it in one minute
+
+```bash
+git clone https://github.com/Soda-null/multi-agent-repo-protocol.git
+git init -b main demo
+multi-agent-repo-protocol/install.sh demo
+cd demo
+git add -A
+git commit -m "first"                     # rejected: no agent named
+git commit -m "first" -m "Agent: human"   # accepted
+```
+
 ## What is inside
 
 | Piece | What it does |
@@ -26,6 +42,7 @@ puts everything into files, and puts a machine check on every rule that a machin
 | `AGENTS.md` (+ `CLAUDE.md` symlink) | One constitution read by every agent |
 | `docs/agent_board.md` | Claims table: who is working on which paths right now |
 | `.githooks/commit-msg` | Rejects a commit without an `Agent: <name>` trailer, so every commit is attributed |
+| `.github/workflows/agent-trailers.yml` | Runs the same check on GitHub, so a commit from a clone without hooks is still seen |
 | `scripts/agent_worktree.sh` | Gives each parallel agent its own working tree on `agent/<name>` |
 | `scripts/delegate.sh` | Sends a task to a cheaper agent — **only if the task names a command that proves it correct** |
 | `docs/decisions.md` + `docs/glossary.md` | Append-only decision ledger with an index, and one line per code name |
@@ -62,11 +79,24 @@ cd multi-agent-repo-protocol
 (it lists what it skipped), links `CLAUDE.md` to `AGENTS.md`, and sets `core.hooksPath`.
 Then fill in the "Project" section of `AGENTS.md` and §1 of `STATUS.md`.
 
-Every clone needs the hooks enabled once:
+### Every new clone
 
-```bash
-git config core.hooksPath .githooks
-```
+Git does not turn hooks on when it clones a repository, so in a fresh clone an unsigned commit
+goes through. Three things cover this:
+
+- **Locally:** run this once per clone. `AGENTS.md` tells every agent to run it at the start of a session.
+
+  ```bash
+  git config core.hooksPath .githooks
+  ```
+
+- **On GitHub:** the installed workflow checks every push and pull request, and marks the run
+  as failed when a commit is unsigned.
+- **To block merges:** a failed run does not stop anything by itself. In the repository's
+  settings, add a branch protection rule for `main` and make `agent-trailers` a required check.
+
+A bot that cannot sign its commits, such as Dependabot, fails this check. Skip it in the
+workflow with `if: github.actor != 'dependabot[bot]'`, or leave the check optional.
 
 Requirements: git ≥ 2.28, bash, Python ≥ 3.9. No Python packages. Tested on Linux, macOS and Windows.
 
@@ -118,6 +148,8 @@ Launchers are set by environment variables (`DEEPSEEK_CMD`, `CODEX_BIN`, `CLAUDE
 
 ## What this does not solve
 
+- **An agent that lies.** The trailer is a claim, not a proof: any agent can write
+  `Agent: human`. It stops forgetting and confusion, not deliberate forgery.
 - **An overclaim in prose.** No checker can tell that a sentence says more than the evidence.
   The human is the only check, and the protocol says so instead of pretending otherwise.
 - **Orchestration overhead.** Writing a packet costs tokens. Delegate only when the work is
@@ -138,6 +170,11 @@ peer calls without `--peer` are refused, a fake executor's work is committed wit
 This grew out of a one-person research repository in which Claude Code, Codex and DeepSeek
 worked side by side for about two months (2026). The project content is not included; only
 the collaboration layer is.
+
+## Feedback
+
+Tried it on a real project? A [field report](https://github.com/Soda-null/multi-agent-repo-protocol/issues/new?template=field_report.md)
+helps most, good or bad. To change the code, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
