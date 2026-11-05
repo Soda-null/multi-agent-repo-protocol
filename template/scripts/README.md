@@ -6,7 +6,7 @@
 
 | Script | What it does | Who runs it |
 |---|---|---|
-| `agent_worktree.sh` | Gives one agent its own working tree on branch `agent/<name>` | An agent starting a parallel session |
+| `agent_worktree.sh` | Gives one agent its own working tree on branch `agent/<name>`; `--list` shows what each agent has changed | Every agent, at the start of a session |
 | `delegate.sh` | Sends a handoff packet to an executor, runs the acceptance command, commits on PASS | The orchestrating agent, only when the owner asked for delegation |
 | `check_current_docs.py` | The entry files cite no superseded decision; every cited decision has a glossary line; `STATUS.md` is not older than the newest decision | The pre-commit hook |
 | `check_doc_structure.py` | Every document has a header card; indexes list every file; entry files stay within their size budget | The pre-commit hook |

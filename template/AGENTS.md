@@ -19,13 +19,16 @@ Several agents work in this repository. They share one git history and one commi
 and they cannot talk to each other: files are the only channel. The rules below are what keeps
 them from overwriting each other.
 
-- **Start of session.** Run `git config core.hooksPath .githooks`, `git pull` and `git status`
-  first, and read `docs/agent_board.md`.
+- **Start of session.** Run `git config core.hooksPath .githooks`. Move to your own working
+  tree (see below) and run `git merge main` there. Then run `git status`, read
+  `docs/agent_board.md`, and run `scripts/agent_worktree.sh --list` to see what other agents
+  have changed.
   Uncommitted changes in the tree are another agent's unfinished session: never revert, stash,
   checkout over, or tidy them away. If they block your task, say so and stop. When a decision
   code (`D<n>`) is unfamiliar, look it up in `docs/glossary.md` before grepping `docs/decisions.md`.
 - **Claim your task** in `docs/agent_board.md`, in the same commit as your first change, and
   release the claim when the work is committed. Do not edit a path another agent has claimed.
+  A claim stays on its agent's branch until that branch is merged, so also check `--list`.
 - **Sign every commit.** End the message with `Agent: codex`, `Agent: claude-code`,
   `Agent: deepseek`, `Agent: local` or `Agent: human`. The `commit-msg` hook enforces this;
   without it nobody can tell who reverted whom. A fresh clone has the hook off, which is why
@@ -43,10 +46,11 @@ them from overwriting each other.
   append-only. With new evidence, add a dated entry that names what it supersedes and why.
   Without new evidence, record the disagreement in `docs/open_questions.md` and let the
   owner decide. Only the owner deletes an entry.
-- **Parallel sessions need separate working trees.** When another agent is already running,
-  run `scripts/agent_worktree.sh <codex|claude-code|deepseek|local>` and work in that
-  directory on branch `agent/<name>`. Merging into `main` is the owner's call. Two agents must
-  never work on `main` in the same directory at the same time.
+- **Every agent has its own branch and working tree.** Run `scripts/agent_worktree.sh <name>`
+  and work in the directory it prints, on `agent/<name>` (`agent/<name>-2` for a second session
+  of the same agent). The `commit-msg` hook refuses an agent's commit anywhere else. Never edit
+  files in another agent's directory. Merging into `main` is the owner's call. Only the owner
+  may set `REQUIRE_AGENT_BRANCH=0` in the hook; then agents work one at a time on `main`.
 - **Who may call whom.** Codex and Claude Code are the owner's two seats, each a session they
   opened deliberately with its own context and its own quota; neither may invoke the other on
   its own initiative, only when the owner asks for that agent in that conversation.

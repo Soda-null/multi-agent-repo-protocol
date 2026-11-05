@@ -49,7 +49,12 @@ def main() -> int:
     else:
         td("run: git config core.hooksPath .githooks  (the commit-msg hook is not active)")
     branch = git("branch", "--show-current")
-    if branch == "main":
+    hook = root / ".githooks" / "commit-msg"
+    required = hook.is_file() and re.search(r"^REQUIRE_AGENT_BRANCH=1$", hook.read_text(encoding="utf-8"), re.M)
+    own = branch == f"agent/{agent}" or branch.startswith(f"agent/{agent}-")
+    if required and agent != "human" and not own:
+        td(f"on branch {branch!r}: {agent} may only commit on agent/{agent} → scripts/agent_worktree.sh {agent}")
+    elif branch == "main":
         ok("on main")
     else:
         info(f"on branch {branch!r}: commit here; merging into main is the owner's call")

@@ -2,3 +2,7 @@
 *.sh text eol=lf
 *.py text eol=lf
 .githooks/* text eol=lf
+
+# Agents work on separate branches and all add rows here: keep both sides instead of a conflict.
+docs/agent_board.md merge=union
+docs/log/*.md merge=union

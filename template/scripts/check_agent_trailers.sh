@@ -26,7 +26,7 @@ checked=0; bad=0
 for sha in $commits; do
     checked=$((checked + 1))
     git log -1 --format=%B "$sha" > "$msg"
-    if ! sh .githooks/commit-msg "$msg" 2>/dev/null; then
+    if ! AGENT_TRAILER_ONLY=1 sh .githooks/commit-msg "$msg" 2>/dev/null; then
         bad=$((bad + 1))
         echo "no valid Agent trailer: $(git log -1 --format='%h %s' "$sha")" >&2
     fi

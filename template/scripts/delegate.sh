@@ -67,7 +67,10 @@ MSG
     exit 2
 fi
 
-dir="$(dirname "$root")/$(basename "$root")-$to"
+# The orchestrating agent runs this from its own worktree; agent_worktree.sh names trees
+# after the main checkout, so this must too.
+main_root=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+dir="$(dirname "$main_root")/$(basename "$main_root")-$to"
 prompt="$(cat "$packet")
 
 ---
@@ -85,8 +88,8 @@ fi
 
 "$root/scripts/agent_worktree.sh" "$to" >/dev/null
 # The executor must start from the current base branch: the packet names files and checkers
-# that live there. Accepted work is cherry-picked into the base branch by the orchestrating
-# agent, so the agent branch is disposable -- reset it when the tree is clean; refuse to run
+# that live there. Accepted work is cherry-picked onto its own branch by the orchestrating
+# agent, so the executor's branch is disposable -- reset it when the tree is clean; refuse to run
 # over dirty work.
 if [ -n "$(git -C "$dir" status --porcelain)" ]; then
     echo "refusing: $dir has uncommitted changes (another packet's leftovers?); inspect or clean it first" >&2

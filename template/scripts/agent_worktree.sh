@@ -1,37 +1,58 @@
 #!/usr/bin/env bash
-# Give one agent its own working tree, so two agents can run at the same time
-# without overwriting each other. Serial work stays on main; this is only for
-# parallel sessions. See AGENTS.md, "Multi-agent collaboration protocol".
+# Give one agent its own working tree on its own branch, so agents cannot overwrite
+# each other. The commit-msg hook only lets an agent commit there.
+# See AGENTS.md, "Multi-agent collaboration protocol".
 #
 #   scripts/agent_worktree.sh codex
-#   scripts/agent_worktree.sh claude-code
-#   scripts/agent_worktree.sh deepseek
-#   scripts/agent_worktree.sh local
-#   scripts/agent_worktree.sh --list
+#   scripts/agent_worktree.sh claude-code-2     # a second session of the same agent
+#   scripts/agent_worktree.sh --list            # what each agent is changing right now
 #   scripts/agent_worktree.sh --remove codex
+#
+# Agent names come from AGENTS_ALLOWED in .githooks/commit-msg.
 set -euo pipefail
 
-root=$(git rev-parse --show-toplevel)
+# The main checkout, even when this runs inside an agent's own worktree.
+root=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+base_branch="${BASE_BRANCH:-main}"
 parent=$(dirname "$root")
 base=$(basename "$root")
 
 usage() {
-    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
     exit "${1:-1}"
 }
 
 case "${1:-}" in
     ""|-h|--help) usage 0 ;;
-    --list) git -C "$root" worktree list; exit 0 ;;
+    --list)
+        git -C "$root" worktree list
+        for branch in $(git -C "$root" for-each-ref --format='%(refname:short)' refs/heads/agent/); do
+            echo
+            echo "$branch, not yet in $base_branch:"
+            git -C "$root" diff --name-only "$base_branch...$branch" | sed 's/^/  /'
+            tree="$parent/$base-${branch#agent/}"
+            [ -d "$tree" ] || continue
+            echo "$branch, uncommitted:"
+            git -C "$tree" status --porcelain | sed 's/^/  /'
+        done
+        exit 0
+        ;;
     --remove)
         agent="${2:?usage: --remove <agent>}"
         git -C "$root" worktree remove "$parent/$base-$agent"
         echo "removed $parent/$base-$agent (branch agent/$agent kept)"
         exit 0
         ;;
-    codex|claude-code|deepseek|local) agent="$1" ;;
-    *) echo "unknown agent: $1" >&2; usage ;;
+    -*) echo "unknown option: $1" >&2; usage ;;
 esac
+
+# One list of names, in the hook; `human` works in the main checkout.
+allowed=$(sed -n 's/^AGENTS_ALLOWED="\(.*\)"$/\1/p' "$root/.githooks/commit-msg")
+agent="$1"
+if [ "$agent" = human ] || ! printf '%s\n' "$agent" | grep -Eq "^($allowed)(-[A-Za-z0-9._]+)?\$"; then
+    echo "unknown agent: $agent (names come from AGENTS_ALLOWED in .githooks/commit-msg)" >&2
+    usage
+fi
 
 dir="$parent/$base-$agent"
 branch="agent/$agent"
@@ -85,6 +106,7 @@ link_dir_contents() {
 
 if [ -d "$dir" ]; then
     echo "already exists: $dir (branch $(git -C "$dir" branch --show-current))"
+    echo "to pick up the latest $base_branch, run there: git merge $base_branch"
     link_untracked_data
 else
     if git -C "$root" show-ref --verify --quiet "refs/heads/$branch"; then

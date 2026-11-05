@@ -4,6 +4,10 @@
 #
 # Edit AGENTS_ALLOWED to match the agents in your repository.
 AGENTS_ALLOWED="codex|claude-code|deepseek|local|human"
+# 1: an agent may commit only on its own branch, agent/<name> or agent/<name>-<suffix>,
+# so that agents work in separate directories and a clash shows up as a merge conflict.
+# `Agent: human` is exempt. 0: any agent may commit on any branch.
+REQUIRE_AGENT_BRANCH=1
 FIRST_LINE_MAX=100
 msg_file="$1"
 
@@ -17,16 +21,46 @@ if [ "${first_len:-0}" -gt "$FIRST_LINE_MAX" ]; then
     echo "note: first line is ${first_len} characters; AGENTS.md asks for under ${FIRST_LINE_MAX} (details go in the body)." >&2
 fi
 
-if grep -Eq "^Agent: ($AGENTS_ALLOWED)\$" "$msg_file"; then
-    exit 0
-fi
-
-cat >&2 <<MSG
+agent=$(grep -E "^Agent: ($AGENTS_ALLOWED)\$" "$msg_file" | tail -1 | sed 's/^Agent: //')
+if [ -z "$agent" ]; then
+    cat >&2 <<MSG
 commit rejected: the message needs an agent trailer on its own line, one of:
 
     Agent: $(echo "$AGENTS_ALLOWED" | sed 's/|/   Agent: /g')
 
 Several agents share this repository and one git identity. Without the trailer
 nobody can tell who overwrote whose work. See AGENTS.md.
+MSG
+    exit 1
+fi
+
+# The branch rule is about where a commit is being made, so it does not apply when
+# scripts/check_agent_trailers.sh checks commits that already exist.
+[ -n "${AGENT_TRAILER_ONLY:-}" ] && exit 0
+[ "$REQUIRE_AGENT_BRANCH" = 1 ] || exit 0
+[ "$agent" = human ] && exit 0
+
+branch=$(git branch --show-current)
+case "$branch" in
+    "agent/$agent"|"agent/$agent"-*) exit 0 ;;
+esac
+# A rebase runs on a detached HEAD; it rewrites commits that already passed this check.
+if [ -z "$branch" ] && { [ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ]; }; then
+    exit 0
+fi
+
+cat >&2 <<MSG
+commit rejected: Agent: $agent may only commit on agent/$agent (this is ${branch:-a detached HEAD}).
+
+Work in your own directory, so that agents cannot overwrite each other:
+
+    scripts/agent_worktree.sh $agent
+
+Already changed files here? Copy the staged changes across, then undo only your own
+paths here:
+
+    git diff --cached --binary | git -C ../$(basename "$(pwd)")-$agent apply --index
+
+Only the owner can turn this rule off (REQUIRE_AGENT_BRANCH in .githooks/commit-msg).
 MSG
 exit 1
