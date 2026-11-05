@@ -7,7 +7,7 @@ description: "End-of-session close-out for a repository shared by several AI age
 
 ## Why this list exists
 
-Several agents share this checkout and one git identity. The protocol (`AGENTS.md`) therefore
+Several agents share this repository and one git identity. The protocol (`AGENTS.md`) therefore
 treats an uncommitted change as *the next agent's problem*: it is what gets reverted, stashed
 or built on by mistake. Three other things depend on closing properly:
 
@@ -15,7 +15,8 @@ or built on by mistake. Three other things depend on closing properly:
   and `open_questions.md` are for state, not narrative);
 - the worklog line is derived from commit times, so it is only right if it is generated after
   the substantive commit;
-- the `commit-msg` hook rejects any commit without an `Agent:` trailer.
+- the `commit-msg` hook rejects any commit without an `Agent:` trailer, and an agent's commit
+  outside its own `agent/<name>` branch.
 
 Work through the steps in order; each is short.
 

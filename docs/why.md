@@ -24,6 +24,18 @@ All agents commit under the human's one git identity. Without the trailer, the h
 answer "who reverted this?". The hook makes the trailer non-optional. When delegated work is
 committed, `delegate.sh` writes the trailer itself, so it is guaranteed rather than trusted.
 
+## Each agent commits only on its own branch
+
+Unlike the rules above, this one did not come from an incident in the origin repository. After the
+protocol was published, a test showed that the headline promise, "agents do not overwrite each
+other", had almost no machine check behind it: an agent could commit over a path another agent had
+claimed, sweep up its half-finished file with `git add -A`, or wipe its uncommitted work. Nothing
+stopped any of these. Separate worktrees existed, but nothing made an agent use them.
+
+The hook now refuses an agent's commit outside `agent/<name>`. This is the one place that knows both
+who is committing (the trailer) and where (the branch). A clash between agents becomes a merge
+conflict for the human, instead of the later commit quietly winning.
+
 ## Peers do not call peers
 
 Codex and Claude Code each run on a subscription the human opened deliberately, with its own

@@ -23,8 +23,8 @@ One row per entry. **Standing** is *live* when nothing later supersedes it, or s
 
 **Status:** accepted by the owner.
 
-Every agent working here follows `AGENTS.md`. Commits carry an `Agent:` trailer, parallel
-sessions use separate worktrees, and delegated work needs an acceptance command.
+Every agent working here follows `AGENTS.md`. Commits carry an `Agent:` trailer, each agent
+works on its own branch and worktree, and delegated work needs an acceptance command.
 
 <!-- Entry template:
 

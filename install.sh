@@ -66,6 +66,8 @@ Next:
   1. Fill in the "Project" section of AGENTS.md and §1 of STATUS.md.
   2. If you skipped files that already existed, merge the protocol into them by hand.
   3. Edit AGENTS_ALLOWED in .githooks/commit-msg if your agents have other names.
+     Each agent commits only on its own branch: start it with scripts/agent_worktree.sh <name>.
+     To allow agents on any branch, set REQUIRE_AGENT_BRANCH=0 in the same file.
   4. Run: python3 scripts/check_current_docs.py && python3 scripts/check_doc_structure.py
      (on Windows: python instead of python3)
   5. First commit: git add -A && git commit -m "Adopt the multi-agent protocol" -m "Agent: human"

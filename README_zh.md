@@ -20,7 +20,8 @@
 - 一个需要判断力的活被派给了便宜模型，它交回一份看着像样、其实不对的东西，还被收下了。
 
 这些 AI 彼此不能说话，**文件是它们之间唯一的通道**。所以这套规矩把一切都落到文件里，
-凡是机器能查的规矩，都配一个自动检查。
+给每个 AI 单独的分支和目录，并给最重要的几条规矩配上自动检查。
+[哪些有检查](#哪些规矩有检查哪些没有)写得很清楚。
 
 ## 一分钟试一下
 
@@ -40,9 +41,9 @@ git commit -m "first" -m "Agent: human"   # 通过
 |---|---|
 | `AGENTS.md`（+ 指向它的 `CLAUDE.md`） | 一份总章程，所有 AI 读同一份 |
 | `docs/agent_board.md` | 任务板：谁现在在改哪些文件 |
-| `.githooks/commit-msg` | 提交说明里没写 `Agent: 名字` 就拒绝提交，于是每次提交都能对上是谁 |
+| `.githooks/commit-msg` | 提交说明里没写 `Agent: 名字` 就拒绝提交；AI 不在自己的分支上提交也会被拒绝 |
 | `.github/workflows/agent-trailers.yml` | 在 GitHub 上跑同样的检查，没开钩子的 clone 提交了也能被发现 |
-| `scripts/agent_worktree.sh` | 并行干活时给每个 AI 一个独立的工作目录（分支 `agent/<名字>`） |
+| `scripts/agent_worktree.sh` | 给每个 AI 一个独立的工作目录（分支 `agent/<名字>`），还能列出每个 AI 改了什么 |
 | `scripts/delegate.sh` | 把活派给便宜的 AI——**前提是这个活写明了一条能证明它做对了的命令** |
 | `docs/decisions.md` + `docs/glossary.md` | 只能追加的决定账本（带索引），和每个代号一行的白话解释 |
 | `scripts/check_current_docs.py` | 入口文件里引用了已作废的决定却没说明，就拦下提交 |
@@ -53,11 +54,11 @@ git commit -m "first" -m "Agent: human"   # 通过
 
 ## 规矩一页纸
 
-1. **开工：** `git pull`、`git status`、读任务板。没提交的改动属于别的 AI：不许撤销、暂存或"整理"。
+1. **开工：** 进自己的工作目录，`git merge main`、`git status`、读任务板。没提交的改动属于别的 AI：不许撤销、暂存或"整理"。
 2. **认领：** 第一次提交时在任务板上写明自己占了哪些路径；干完就删掉。
 3. **署名：** 每次提交末尾写 `Agent: claude-code`（或 `codex`、`deepseek`、`local`、`human`），钩子强制。
 4. **只暂存自己改的文件**，一个个点名。共用的目录里绝不 `git add -A`。
-5. **并行就分开工作目录。** 合并回 `main` 由人决定。
+5. **每个 AI 只在自己的分支和目录里提交，** 钩子强制。合并回 `main` 由人决定。
 6. **不许悄悄推翻别的 AI 记下的结论。** 账本只能追加；没有新证据，就把分歧写下来，让人来定。
 7. **同级不互相调用。** Codex 和 Claude Code 是人亲自开的两个座位，除非人开口，谁也不调谁（`delegate.sh` 要加 `--peer`）。
 8. **派活必须带验收命令。** 说不出哪条命令能证明做对了 → 这就是要判断力的活，留给贵的 AI 和人。
@@ -65,6 +66,37 @@ git commit -m "first" -m "Agent: human"   # 通过
 10. **收工：** 做完的全部提交。你留下没提交的，就是下一个 AI 会弄坏的。
 
 每条规矩是被哪件事逼出来的：[`docs/why.md`](docs/why.md)。
+
+## 哪些规矩有检查，哪些没有
+
+| 规矩 | 靠什么检查 |
+|---|---|
+| 每次提交写明是哪个 AI | `commit-msg` 钩子，加上 GitHub 上的 CI |
+| AI 只在自己的分支上提交 | `commit-msg` 钩子，只在你的电脑上生效 |
+| 入口文件不引用已作废的决定 | `pre-commit` 钩子 |
+| 派活要有验收命令；调用同级要加 `--peer` | `delegate.sh` |
+| 遵守认领表；不碰别的 AI 没提交的文件；逐个点名暂存；账本只追加 | **没有检查，** 只是写下来的规矩。分开目录之后，前三条没那么容易出事 |
+
+AI 可以用 `git commit --no-verify` 跳过钩子。CI 跳不过去，但它只查署名。
+
+## 平时怎么用
+
+```bash
+scripts/agent_worktree.sh codex         # 建 ../你的仓库-codex，分支 agent/codex
+scripts/agent_worktree.sh claude-code   # 建 ../你的仓库-claude-code，分支 agent/claude-code
+```
+
+让每个 AI 在自己的目录里启动。它要是在别处提交，钩子会拒绝，并告诉它该怎么办。干完之后，在你的主目录里合并：
+
+```bash
+scripts/agent_worktree.sh --list        # 看每个 AI 改了什么
+git merge --no-ff agent/codex
+```
+
+如果两个 AI 改了同一处，git 会在这一步报冲突，由你来定。你自己的提交（`Agent: human`）不受限制。
+
+**代价是每件活多一次合并，** 一次只用一个 AI 也一样。想关掉这条规则，把 `.githooks/commit-msg` 里的 `REQUIRE_AGENT_BRANCH` 改成 `0`。
+如果某个工具非要用自己的分支名，也只能这样，因为规则只认 `agent/<名字>` 和 `agent/<名字>-<后缀>`。
 
 ## 安装
 
@@ -115,6 +147,7 @@ Windows 上不一样的地方，都已经处理好了：
 
 ## 管不了的事
 
+- **提交之前的破坏。** Git 没有能在 `git checkout -- 文件` 或 `git stash` 之前运行的钩子。AI 要是不守规矩，跑进别的 AI 的目录，还是能毁掉没提交的改动。
 - **AI 撒谎。** 署名只是一句声明，不是证明，谁都能写 `Agent: human`。它防的是忘记写和搞混，防不了故意冒名。
 - **文字说过头。** 没有脚本能判断一句话是不是比证据说得更满，只能靠人看。这套规矩直说这一点，不假装能管。
 - **派活本身的开销。** 写派活单也花 token。只有活远比说明大时才值得派（经验值：单子不到 1 KB，活要动 20 KB 以上的文件）。

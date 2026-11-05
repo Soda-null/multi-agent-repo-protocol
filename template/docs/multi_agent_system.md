@@ -76,8 +76,8 @@ the board and a decision that is not in a packet do not exist.
 
 ## Isolation and attribution
 
-- Each parallel agent works in its own worktree on `agent/<name>` (`scripts/agent_worktree.sh`).
-  Two agents never work on `main` in the same directory.
+- Each agent works in its own worktree on `agent/<name>` (`scripts/agent_worktree.sh`), and
+  `.githooks/commit-msg` refuses its commit on any other branch.
 - Every commit carries an `Agent:` trailer, enforced by `.githooks/commit-msg`, so a
   rollback can be attributed even though all agents share one git identity.
 - The executor never commits: `delegate.sh` commits for it after the acceptance command
@@ -88,7 +88,7 @@ the board and a decision that is not in a packet do not exist.
 
 | Failure | What catches it |
 |---|---|
-| Two agents edit the same file | Worktrees; the claims table |
+| Two agents edit the same file | Separate branches make it a merge conflict, which the owner resolves |
 | One agent reverts another's conclusion | Append-only ledgers; the `Agent:` trailer makes it visible afterwards |
 | A stale decision is read as the rule | `check_current_docs.py` on every commit that touches an entry file |
 | A cheap agent produces plausible garbage | The acceptance command, run by `delegate.sh` |

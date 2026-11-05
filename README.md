@@ -21,7 +21,9 @@ When you use more than one agent on the same project, the same things go wrong a
 - A cheap model is given a task that needs judgment, and its plausible-looking output is accepted.
 
 The agents cannot talk to each other. **Files are the only channel.** So this protocol
-puts everything into files, and puts a machine check on every rule that a machine can check.
+puts everything into files, gives each agent its own branch and directory, and backs the most
+important rules with machine checks. [What is enforced](#what-is-enforced-and-what-is-not) lists
+which rules have a check and which do not.
 
 ## Try it in one minute
 
@@ -41,9 +43,9 @@ git commit -m "first" -m "Agent: human"   # accepted
 |---|---|
 | `AGENTS.md` (+ `CLAUDE.md` symlink) | One constitution read by every agent |
 | `docs/agent_board.md` | Claims table: who is working on which paths right now |
-| `.githooks/commit-msg` | Rejects a commit without an `Agent: <name>` trailer, so every commit is attributed |
+| `.githooks/commit-msg` | Rejects a commit without an `Agent: <name>` trailer, and an agent's commit outside its own branch |
 | `.github/workflows/agent-trailers.yml` | Runs the same check on GitHub, so a commit from a clone without hooks is still seen |
-| `scripts/agent_worktree.sh` | Gives each parallel agent its own working tree on `agent/<name>` |
+| `scripts/agent_worktree.sh` | Gives each agent its own working tree on `agent/<name>`, and lists what each one has changed |
 | `scripts/delegate.sh` | Sends a task to a cheaper agent — **only if the task names a command that proves it correct** |
 | `docs/decisions.md` + `docs/glossary.md` | Append-only decision ledger with an index, and one line per code name |
 | `scripts/check_current_docs.py` | Blocks a commit when an entry file cites a superseded decision without saying so |
@@ -54,11 +56,11 @@ git commit -m "first" -m "Agent: human"   # accepted
 
 ## The rules in one screen
 
-1. **Start:** `git pull`, `git status`, read the board. Uncommitted changes belong to another agent: never revert, stash or tidy them.
+1. **Start:** go to your own working tree, `git merge main`, `git status`, read the board. Uncommitted changes belong to another agent: never revert, stash or tidy them.
 2. **Claim** your task on the board in your first commit; release it when done.
 3. **Sign** every commit with `Agent: claude-code` (or `codex`, `deepseek`, `local`, `human`). The hook enforces it.
 4. **Stage your own paths by name.** Never `git add -A` in a shared tree.
-5. **Parallel work → separate worktrees.** Merging into `main` is the human's call.
+5. **Each agent commits only on its own branch,** in its own directory. The hook enforces it. Merging into `main` is the human's call.
 6. **Never silently reverse another agent's conclusion.** Ledgers are append-only; without new evidence, write the disagreement down and let the human decide.
 7. **Peers do not call peers.** Codex and Claude Code are the human's two seats; neither invokes the other unless the human asks (`delegate.sh` needs `--peer`).
 8. **Delegation needs an acceptance command.** No command that proves the work right → the task is judgment work and stays with the expensive agent and the human.
@@ -66,6 +68,41 @@ git commit -m "first" -m "Agent: human"   # accepted
 10. **End:** commit everything you finished. What you leave uncommitted is what the next agent destroys.
 
 Why each rule exists, with the incidents behind it: [`docs/why.md`](docs/why.md).
+
+## What is enforced, and what is not
+
+| Rule | What checks it |
+|---|---|
+| Every commit names its agent | `commit-msg` hook, and CI on GitHub |
+| An agent commits only on its own branch | `commit-msg` hook, on your machine only |
+| Entry files cite no superseded decision | `pre-commit` hook |
+| Delegation has an acceptance command; peers need `--peer` | `delegate.sh` |
+| Claims are respected; other agents' uncommitted files are left alone; paths are staged by name; ledgers are append-only | **Nothing.** These are written rules. Separate directories make the first three matter less |
+
+Any agent can skip a hook with `git commit --no-verify`. The CI check cannot be skipped that way,
+but it only looks at the trailer.
+
+## A normal day
+
+```bash
+scripts/agent_worktree.sh codex         # makes ../your-repo-codex on branch agent/codex
+scripts/agent_worktree.sh claude-code   # makes ../your-repo-claude-code on agent/claude-code
+```
+
+Start each agent in its own directory. If an agent tries to commit anywhere else, the hook rejects
+the commit and tells it what to do. When an agent is done, merge its work from your main checkout:
+
+```bash
+scripts/agent_worktree.sh --list        # see what each agent has changed
+git merge --no-ff agent/codex
+```
+
+If two agents changed the same lines, git shows a conflict here and you decide. Your own commits
+(`Agent: human`) can go anywhere.
+
+**This costs one extra merge per job,** even when you run one agent at a time. To turn the rule off,
+set `REQUIRE_AGENT_BRANCH=0` in `.githooks/commit-msg`. Do the same if a tool insists on its own
+branch names, because the rule only accepts `agent/<name>` and `agent/<name>-<suffix>`.
 
 ## Install
 
@@ -148,6 +185,9 @@ Launchers are set by environment variables (`DEEPSEEK_CMD`, `CODEX_BIN`, `CLAUDE
 
 ## What this does not solve
 
+- **Damage before a commit.** Git has no hook that runs before `git checkout -- file` or
+  `git stash`, so an agent that ignores the rules and enters another agent's directory can still
+  destroy uncommitted work.
 - **An agent that lies.** The trailer is a claim, not a proof: any agent can write
   `Agent: human`. It stops forgetting and confusion, not deliberate forgery.
 - **An overclaim in prose.** No checker can tell that a sentence says more than the evidence.
