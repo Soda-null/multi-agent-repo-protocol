@@ -97,6 +97,24 @@ expect_ok   "worklog.py --today runs"                   python3 scripts/worklog.
 expect_ok   "repo_hygiene.py runs"                      python3 scripts/repo_hygiene.py
 expect_ok   "preflight runs" python3 .claude/skills/close-session/scripts/preflight.py
 
+# A fresh clone has no hooks: an unsigned commit gets through locally, and the CI check sees it.
+expect_ok   "the install adds the CI workflow"          test -f .github/workflows/agent-trailers.yml
+git clone -q "$repo" "$work/fresh"
+cd "$work/fresh"
+git config user.email demo@example.com
+git config user.name demo
+expect_ok   "a fresh clone has the hooks off"           test -z "$(git config core.hooksPath)"
+git commit -q --allow-empty -m "Signed work" -m "Agent: codex"
+expect_ok   "the CI check accepts a signed commit"      scripts/check_agent_trailers.sh -1 HEAD
+git commit -q --allow-empty -m "Unsigned work from a fresh clone"
+expect_fail "the CI check catches an unsigned commit"   scripts/check_agent_trailers.sh HEAD~2..HEAD
+git commit -q --amend --allow-empty -m "Now it names someone" -m "Agent: someone-else"
+expect_fail "the CI check catches an unknown agent"     scripts/check_agent_trailers.sh -1 HEAD
+git commit -q --amend --allow-empty -m "Now it is signed" -m "Agent: codex"
+expect_ok   "after signing, the range passes"           scripts/check_agent_trailers.sh HEAD~2..HEAD
+expect_fail "a bad range is an error, not a pass"       scripts/check_agent_trailers.sh no-such-ref..HEAD
+cd "$repo"
+
 echo
 if [ "$fails" = 0 ]; then echo "all checks passed"; else echo "$fails check(s) failed"; fi
 [ "$fails" = 0 ]

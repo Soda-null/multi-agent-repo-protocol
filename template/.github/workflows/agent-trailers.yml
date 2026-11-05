@@ -1,0 +1,38 @@
+# The commit-msg hook only runs where it is enabled, and a fresh clone has it off.
+# This runs the same rule on GitHub, so an unsigned commit is seen wherever it was made.
+# To block merges as well, make `agent-trailers` a required check in branch protection.
+name: agent trailers
+on:
+  push:
+    branches: ['**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  agent-trailers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Every new commit names its agent
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ -n "$PR_BASE" ]; then
+            sh scripts/check_agent_trailers.sh "$PR_BASE..$PR_HEAD"
+          elif git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            sh scripts/check_agent_trailers.sh "$BEFORE..$AFTER"
+          elif [ "$BRANCH" != "$DEFAULT_BRANCH" ] && git rev-parse -q --verify "origin/$DEFAULT_BRANCH" >/dev/null; then
+            # A new branch: everything it adds to the default branch.
+            sh scripts/check_agent_trailers.sh "origin/$DEFAULT_BRANCH..$AFTER"
+          else
+            # A first push or a force push: the old history may predate the protocol.
+            echo "no earlier commit to compare with; checking only the newest commit"
+            sh scripts/check_agent_trailers.sh -1 "$AFTER"
+          fi

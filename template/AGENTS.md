@@ -19,7 +19,8 @@ Several agents work in this repository. They share one git history and one commi
 and they cannot talk to each other: files are the only channel. The rules below are what keeps
 them from overwriting each other.
 
-- **Start of session.** Run `git pull` and `git status` first, and read `docs/agent_board.md`.
+- **Start of session.** Run `git config core.hooksPath .githooks`, `git pull` and `git status`
+  first, and read `docs/agent_board.md`.
   Uncommitted changes in the tree are another agent's unfinished session: never revert, stash,
   checkout over, or tidy them away. If they block your task, say so and stop. When a decision
   code (`D<n>`) is unfamiliar, look it up in `docs/glossary.md` before grepping `docs/decisions.md`.
@@ -27,8 +28,8 @@ them from overwriting each other.
   release the claim when the work is committed. Do not edit a path another agent has claimed.
 - **Sign every commit.** End the message with `Agent: codex`, `Agent: claude-code`,
   `Agent: deepseek`, `Agent: local` or `Agent: human`. The `commit-msg` hook enforces this;
-  without it nobody can tell who reverted whom. Enable the hooks once per clone with
-  `git config core.hooksPath .githooks`.
+  without it nobody can tell who reverted whom. A fresh clone has the hook off, which is why
+  each session enables it first; a CI workflow checks every push as well.
 - **Keep the first line of a commit message under 100 characters** — what changed, in one
   clause. Numbers and narrative go in the body. `git log --oneline` is read at the start of
   every session, so a long first line is paid for by every agent, every time. The hook warns.

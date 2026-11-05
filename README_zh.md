@@ -1,5 +1,9 @@
 # multi-agent-repo-protocol（多 AI 共用一个仓库的协作规矩）
 
+[![smoke test](https://github.com/Soda-null/multi-agent-repo-protocol/actions/workflows/test.yml/badge.svg)](https://github.com/Soda-null/multi-agent-repo-protocol/actions/workflows/test.yml)
+[![release](https://img.shields.io/github/v/release/Soda-null/multi-agent-repo-protocol)](https://github.com/Soda-null/multi-agent-repo-protocol/releases)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 一套规矩 + git 钩子 + 几个小脚本，让好几个 AI 编程助手（Claude Code、Codex、便宜的 API 模型、本地模型）
 在**同一个 git 仓库**里干活时不互相覆盖，而且事后能查清**哪一步是哪个 AI 做的**。
 
@@ -18,6 +22,18 @@
 这些 AI 彼此不能说话，**文件是它们之间唯一的通道**。所以这套规矩把一切都落到文件里，
 凡是机器能查的规矩，都配一个自动检查。
 
+## 一分钟试一下
+
+```bash
+git clone https://github.com/Soda-null/multi-agent-repo-protocol.git
+git init -b main demo
+multi-agent-repo-protocol/install.sh demo
+cd demo
+git add -A
+git commit -m "first"                     # 被拒绝：没写是哪个 AI
+git commit -m "first" -m "Agent: human"   # 通过
+```
+
 ## 里面有什么
 
 | 部件 | 作用 |
@@ -25,6 +41,7 @@
 | `AGENTS.md`（+ 指向它的 `CLAUDE.md`） | 一份总章程，所有 AI 读同一份 |
 | `docs/agent_board.md` | 任务板：谁现在在改哪些文件 |
 | `.githooks/commit-msg` | 提交说明里没写 `Agent: 名字` 就拒绝提交，于是每次提交都能对上是谁 |
+| `.github/workflows/agent-trailers.yml` | 在 GitHub 上跑同样的检查，没开钩子的 clone 提交了也能被发现 |
 | `scripts/agent_worktree.sh` | 并行干活时给每个 AI 一个独立的工作目录（分支 `agent/<名字>`） |
 | `scripts/delegate.sh` | 把活派给便宜的 AI——**前提是这个活写明了一条能证明它做对了的命令** |
 | `docs/decisions.md` + `docs/glossary.md` | 只能追加的决定账本（带索引），和每个代号一行的白话解释 |
@@ -62,6 +79,21 @@ cd multi-agent-repo-protocol
 
 需要：git ≥ 2.28、bash、Python ≥ 3.9，不用装任何 Python 包。Linux、macOS、Windows 都测过。
 
+### 每次新 clone
+
+Git clone 仓库时不会自动打开钩子，所以新 clone 出来的仓库里，没署名的提交也能成功。这里有三层办法：
+
+- **本地：** 每份 clone 跑一次下面这条。`AGENTS.md` 也要求每个 AI 开工时先跑它。
+
+  ```bash
+  git config core.hooksPath .githooks
+  ```
+
+- **GitHub 上：** 安装时带上的 workflow（GitHub 自动运行的任务）会检查每次 push 和 PR，发现没署名的提交就把这次运行标成失败。
+- **想拦住合并：** 运行失败本身拦不住任何事。要在仓库设置里给 `main` 加一条分支保护规则，把 `agent-trailers` 设成必须通过的检查。
+
+不会署名的机器人（比如 Dependabot）过不了这个检查。可以在 workflow 里加 `if: github.actor != 'dependabot[bot]'` 跳过它，或者不把这个检查设成必须通过。
+
 ### Windows
 
 先装 [Git for Windows](https://git-scm.com/download/win)（自带 Git Bash）和 Python 3.9 以上，然后在 PowerShell 里：
@@ -83,6 +115,7 @@ Windows 上不一样的地方，都已经处理好了：
 
 ## 管不了的事
 
+- **AI 撒谎。** 署名只是一句声明，不是证明，谁都能写 `Agent: human`。它防的是忘记写和搞混，防不了故意冒名。
 - **文字说过头。** 没有脚本能判断一句话是不是比证据说得更满，只能靠人看。这套规矩直说这一点，不假装能管。
 - **派活本身的开销。** 写派活单也花 token。只有活远比说明大时才值得派（经验值：单子不到 1 KB，活要动 20 KB 以上的文件）。
 
@@ -98,6 +131,10 @@ tests/smoke_test.sh
 
 这套东西来自一个单人研究仓库：2026 年里 Claude Code、Codex、DeepSeek 在里面一起干了大约两个月。
 项目本身的内容没有放进来，只开源协作这一层。
+
+## 反馈
+
+在真实项目里用过？欢迎写一份[使用报告](https://github.com/Soda-null/multi-agent-repo-protocol/issues/new?template=field_report.md)，好的坏的都有用。想改代码请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可
 
