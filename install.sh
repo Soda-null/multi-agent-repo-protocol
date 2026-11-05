@@ -69,4 +69,8 @@ Next:
   4. Run: python3 scripts/check_current_docs.py && python3 scripts/check_doc_structure.py
      (on Windows: python instead of python3)
   5. First commit: git add -A && git commit -m "Adopt the multi-agent protocol" -m "Agent: human"
+  6. On GitHub: .github/workflows/agent-trailers.yml checks every push. To block merges too,
+     make \`agent-trailers\` a required check in branch protection.
+
+Each new clone needs: git config core.hooksPath .githooks
 EOF

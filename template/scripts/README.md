@@ -10,6 +10,7 @@
 | `delegate.sh` | Sends a handoff packet to an executor, runs the acceptance command, commits on PASS | The orchestrating agent, only when the owner asked for delegation |
 | `check_current_docs.py` | The entry files cite no superseded decision; every cited decision has a glossary line; `STATUS.md` is not older than the newest decision | The pre-commit hook |
 | `check_doc_structure.py` | Every document has a header card; indexes list every file; entry files stay within their size budget | The pre-commit hook |
+| `check_agent_trailers.sh` | Every commit in a range has a valid `Agent:` trailer, by the same rule as the `commit-msg` hook | The CI workflow, on every push and pull request |
 | `worklog.py` | Hours per day, derived from commit times (a proxy, not a timesheet) | The closing agent, for the day's log |
 | `new_log.py` | Creates today's log entry from the template; never overwrites | The closing agent |
 | `repo_hygiene.py` | Weekly check-up: deletes only junk and merged branches, reports everything else | A scheduler, weekly |
